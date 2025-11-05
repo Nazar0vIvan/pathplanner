@@ -1,0 +1,1 @@
+-I"E:/Qt/QtProjects/linalg/build/Desktop_Qt_6_8_3_MinGW_64_bit-Debug/linalg_autogen/include" -I"E:/Qt/QtProjects/linalg/external/eigen-5.0.0" -isystem E:/Qt/6.8.3/mingw_64/include/QtCore -isystem E:/Qt/6.8.3/mingw_64/include -isystem "E:/Qt/6.8.3/mingw_64/mkspecs/win32-g++" -isystem E:/Qt/6.8.3/mingw_64/include/QtGui

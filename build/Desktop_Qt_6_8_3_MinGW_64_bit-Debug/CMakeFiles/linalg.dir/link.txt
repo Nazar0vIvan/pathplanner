@@ -1,0 +1,3 @@
+E:\Qt\Tools\CMake_64\bin\cmake.exe -E rm -f CMakeFiles\linalg.dir/objects.a
+E:\Qt\Tools\mingw1310_64\bin\ar.exe qc CMakeFiles\linalg.dir/objects.a @CMakeFiles\linalg.dir\objects1.rsp
+E:\Qt\Tools\mingw1310_64\bin\g++.exe -DQT_QML_DEBUG -g -Wl,--whole-archive CMakeFiles\linalg.dir/objects.a -Wl,--no-whole-archive -o linalg.exe -Wl,--out-implib,liblinalg.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\linalg.dir\linkLibs.rsp
