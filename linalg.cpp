@@ -1,22 +1,15 @@
 #include "linalg.h"
 
-#include <Eigen/Dense>
-#include <cmath>
-#include <stdexcept>
-
-#include <QFile>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
-
 // ------------ Math ------------
-Eigen::Matrix4d trMatrix4x4(const Eigen::Vector3d& delta) {
+Eigen::Matrix4d trMatrix4x4(const Eigen::Vector3d& delta)
+{
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
   T.block<3,1>(0,3) = delta;
   return T;
 }
 
-Eigen::Matrix4d rotMatrix4x4(double angleDeg, char axis) {
+Eigen::Matrix4d rotMatrix4x4(double angleDeg, char axis)
+{
   Eigen::Matrix4d R = Eigen::Matrix4d::Identity();
   const double ang = angleDeg * M_PI / 180.0;
   const double c = std::cos(ang), s = std::sin(ang);
@@ -32,7 +25,8 @@ Eigen::Matrix4d rotMatrix4x4(double angleDeg, char axis) {
 
 Plane pointsToPlane(const Eigen::Ref<const Eigen::VectorXd>& x,
                     const Eigen::Ref<const Eigen::VectorXd>& y,
-                    const Eigen::Ref<const Eigen::VectorXd>& z) {
+                    const Eigen::Ref<const Eigen::VectorXd>& z)
+{
   const double n = static_cast<double>(x.size());
   Eigen::Matrix3d U;
   U << x.squaredNorm(), x.dot(y),        x.sum(),
@@ -54,7 +48,8 @@ Plane pointsToPlane(const Eigen::Ref<const Eigen::VectorXd>& x,
 }
 
 Eigen::Vector3d poly(double x0, double x1, double x2,
-                     double y0, double y1, double y2) {
+                     double y0, double y1, double y2)
+{
   Eigen::Matrix3d A;
   A << x0*x0, x0, 1.0,
        x1*x1, x1, 1.0,
@@ -111,7 +106,8 @@ Frene::Frene(const Eigen::Vector3d& t_,
 Frene getFreneByPoly(const Eigen::Vector3d& p0,
                      const Eigen::Vector3d& u1,
                      const Eigen::Vector3d& u2,
-                     const Eigen::Vector3d& v1) {
+                     const Eigen::Vector3d& v1)
+{
   const Eigen::Vector3d coef = poly(u1.x(), p0.x(), u2.x(), u1.y(), p0.y(), u2.y());
   const double a0 = coef[0], a1 = coef[1];
   const double dy_dt = 2.0*a0*p0.x() + a1;
@@ -137,7 +133,8 @@ Frene getFreneByCirc(const Eigen::Vector3d &pt0, const Eigen::Vector3d &ptc)
 }
 
 // ------------ Blade ------------
-static MatN3 jsonArrayToMat3(const QJsonArray& arr) {
+static MatN3 jsonArrayToMat3(const QJsonArray& arr)
+{
   MatN3 M(static_cast<int>(arr.size()), 3);
   for (int i=0; i<arr.size(); ++i) {
     const QJsonArray triple = arr[i].toArray();
@@ -148,7 +145,8 @@ static MatN3 jsonArrayToMat3(const QJsonArray& arr) {
   return M;
 }
 
-Airfoil loadBladeJson(const QString& filePath) {
+Airfoil loadBladeJson(const QString& filePath)
+{
   QFile f(filePath);
   if (!f.open(QIODevice::ReadOnly))
     throw std::runtime_error(("Cannot open file: " + filePath).toStdString());
@@ -176,6 +174,8 @@ Airfoil loadBladeJson(const QString& filePath) {
   return airfoil;
 }
 
+
+// ------------ Base ------------
 Frame getBeltFrame(const Eigen::Vector3d& o,
                    const Eigen::Ref<const Eigen::VectorXd>& x,
                    const Eigen::Ref<const Eigen::VectorXd>& y,
@@ -206,8 +206,11 @@ Frame getBeltFrame(const Eigen::Vector3d& o,
   return { o.x(), o.y(), o.z(), A, B, C };
 }
 
-Cylinder Cylinder::fromAxis(const Eigen::Vector3d &c1,
-                            const Eigen::Vector3d &c2,
+
+// ------------ Cylinder ------------
+Cylinder Cylinder::fromAxis(const Eigen::Vector3d& c1,
+                            const Eigen::Vector3d& c2,
+                            const Eigen::Vector3d& o,
                             double R)
 {
   // unit vector along cyl axis in WCS
@@ -218,19 +221,36 @@ Cylinder Cylinder::fromAxis(const Eigen::Vector3d &c1,
   z /= z.norm();
   // third unit vector form right system in WCS
   Eigen::Vector3d x = y.cross(z).normalized();
-  // point on cyl surf on WCS
-  const Eigen::Vector3d o = 0.5 * (c1 + c2) + R * z;
   // Transform matrix from CSCS to WCS
   Eigen::Matrix4d transform; transform.setIdentity();
   transform.block<3,3>(0,0) << x, y, z;
   transform.block<3,1>(0,3) = o;
-  // Get Frame
+  // get Frame
   EulerSolution angles = rot2euler(transform.topLeftCorner<3,3>(), true);
-
   Frame frame;
   frame << o, angles.A1, angles.B1, angles.C1;
 
-  return { R, frame, transform };
+  Pose pose = { frame, transform };
+
+  return { R, pose };
+}
+
+Pose Cylinder::surfacePose(double deltaY) const
+{
+  Pose scs; // (surface coordinate system)
+
+  const Eigen::Matrix3d Rw = pose.R();  // CCS rotation in WCS
+  const Eigen::Vector3d o  = pose.t();  // CCS origin in WCS
+  const Eigen::Vector3d y  = Rw.col(1); // CCS y-axis
+  const Eigen::Vector3d z  = Rw.col(2); // CCS z-axis (radial)
+
+  const Eigen::Vector3d os = o + deltaY * y + R * z;  // SCS origin in WCS
+
+  scs.T = pose.T;
+  scs.T.block<3,1>(0,3) = os;
+  scs.frame << os, pose.frame(3), pose.frame(4), pose.frame(5); // same angles
+
+  return scs;
 }
 
 

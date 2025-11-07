@@ -4,6 +4,11 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <QString>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <cmath>
 
 // ------------ Math ------------
 
@@ -14,19 +19,30 @@ struct Plane {
   double AA, BB, DD;   // z = AA*x + BB*y + DD
 };
 
+struct Pose {
+  Frame frame;       // [x,y,z,A,B,C] (deg)
+  Eigen::Matrix4d T; // homogeneous transform
+
+  Eigen::Vector3d t()   const { return T.block<3,1>(0,3); }
+  Eigen::Matrix3d R()   const { return T.block<3,3>(0,0); }
+};
+
 struct Cylinder {
-  static Cylinder fromAxis(const Eigen::Vector3d& c1_,
-                           const Eigen::Vector3d& c2_,
-                           double R_);
+  static Cylinder fromAxis(const Eigen::Vector3d& c1,
+                           const Eigen::Vector3d& c2,
+                           const Eigen::Vector3d& pc,
+                           double R);
+
+  Pose surfacePose(double deltaY) const;
+
   double R;
-  Frame frame; // [X,Y,Z,A,B,C]
-  Eigen::Matrix4d transform;
+  Pose pose;
 };
 
 struct EulerSolution {
-  double A1, A2; // yaw (Z)
-  double B1, B2; // pitch (Y)
-  double C1, C2; // roll (X)
+  double A1, A2,
+         B1, B2,
+         C1, C2;
 };
 
 Eigen::Matrix4d trMatrix4x4(const Eigen::Vector3d& delta);
@@ -39,7 +55,6 @@ Eigen::Vector3d poly(double x0, double x1, double x2,
 
 EulerSolution rot2euler(const Eigen::Matrix3d& R, bool is_deg = false);
 Eigen::Matrix3d euler2rot(double A, double B, double C, bool is_deg = false);
-
 
 // ------------ Frene ------------
 struct Frene {
