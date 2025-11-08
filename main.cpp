@@ -2,7 +2,7 @@
 #include <QFileInfo>
 #include <iostream>
 
-#include "linalg.h"
+#include "pathplanner.h"
 
 int main(int argc, char *argv[])
 {

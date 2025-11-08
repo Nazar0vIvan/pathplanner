@@ -1,5 +1,5 @@
-#ifndef LINALG_H
-#define LINALG_H
+#ifndef PATHPLANNER_H
+#define PATHPLANNER_H
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -89,4 +89,4 @@ Frame getBeltFrame(const Eigen::Vector3d& o,
 Airfoil loadBladeJson(const QString& filePath);
 
 
-#endif // LINALG_H
+#endif // PATHPLANNER_H

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(linalg LANGUAGES CXX)
+project(pathplanner LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC OFF)
 set(CMAKE_AUTOMOC OFF)
@@ -15,20 +15,19 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui)
 set(EIGEN5_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external/eigen-5.0.0)
 include_directories(${EIGEN5_INCLUDE_DIR})
 
-add_executable(linalg
+add_executable(pathplanner
   main.cpp
-  linalg.cpp
-  linalg.h
-  linalg.cpp
+  pathplanner.cpp
+  pathplanner.h
 )
-target_link_libraries(linalg
+target_link_libraries(pathplanner
   PRIVATE Qt${QT_VERSION_MAJOR}::Core
 )
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 include(GNUInstallDirs)
-install(TARGETS linalg
+install(TARGETS pathplanner
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
