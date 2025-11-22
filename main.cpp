@@ -8,6 +8,7 @@ int main(int argc, char *argv[])
 {
   QCoreApplication a(argc, argv);
 
+  /*
   // BELT LOCATING: B -> 0
   Eigen::Vector3d oT(1009.15, -16.49, 623.81);
   Eigen::VectorXd xT(9), yT(9), zT(9);
@@ -15,7 +16,7 @@ int main(int argc, char *argv[])
   yT << -16.14,  -29.24,    0.92,  -16.14,  -10.54,  -22.95,  -22.21,  -10.51,  -16.49;
   zT << 625.57,  623.52,  623.48,  622.35,  623.61,  622.86,  624.73,  624.40,  623.81;
 
-  Frame beltFrame = getBeltFrame(oT, xT, yT, zT);
+  Vec6d beltFrame = getBeltFrame(oT, xT, yT, zT);
 
   // BLADE LOCATING: B -> F
   Eigen::Matrix4d ABF_T = trMatrix4x4({0.011, 0.047, 153.319});
@@ -50,6 +51,7 @@ int main(int argc, char *argv[])
           0.0, 1.0,  0.0, 0.0,
           0.0, 0.0, -1.0, 0.0,
           0.0, 0.0,  0.0, 1.0; // BELT
+  */
   /*
   AiT <<  0.0,-1.0, 0.0, 0.0,
          -1.0, 0.0, 0.0, 0.0,
@@ -58,23 +60,36 @@ int main(int argc, char *argv[])
 
   */
 
+  const std::string menu = "Enter command:\n"
+                           "1. read - read blade geo from 99.01.25.242.json\n"
+                           "2. spline - generate rsi spline and write it into offsets.json\n"
+                           "3. exit - exit program\n:";
+
   const QString jsonPath = QFileInfo(QString::fromUtf8(__FILE__)).absolutePath() + "/99.01.25.242.json";
 
   std::string cmd;
-  std::cout << "Enter command (read/exit): " << std::flush;
+  std::cout << menu << std::flush;
   while (std::getline(std::cin, cmd)) {
     if (cmd == "read") {
-      // READING BLADE GEO
+      // reading blade geo
       auto blade = loadBladeJson(jsonPath);
       std::cout << "Loaded profiles: " << blade.size() << "\n";
 
+      // rsi spline
+    } else if (cmd == "spline") {
+      Vec6d p0 = { 810.0, 0.0, 940.0, 180.0, 0.0, 180.0 };
+      Vec6d p1 = { 1010.0, 0.0, 940.0, 180.0, 0.0, 180.0 };
+      QVector<Vec6d> ref_points = { p0, p1 };
+      QVector<Vec6d> offsets = rsi::spline(ref_points, { 10.0, 2.0 }, 4);
+      const QString path = QFileInfo(QString::fromUtf8(__FILE__)).absolutePath() + "/offsets.json";
+      writeOffsetsToJson(offsets, path, 4);
 
     } else if (cmd == "exit") {
       break;
     } else if (!cmd.empty()) {
       std::cout << "Unknown command: " << cmd << "\n";
     }
-    std::cout << "Enter command (read/exit): " << std::flush;
+    std::cout << menu << std::flush;
   }
 
   return 0;

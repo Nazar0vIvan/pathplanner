@@ -12,7 +12,7 @@
 
 // ------------ Math ------------
 
-using Frame = Eigen::Matrix<double, 6, 1>; // row 6x1
+using Vec6d = Eigen::Matrix<double, 6, 1>; // row 6x1
 
 struct Plane {
   double A, B, C, D;   // A*x + B*y + C*z + D = 0
@@ -20,7 +20,7 @@ struct Plane {
 };
 
 struct Pose {
-  Frame frame;       // [x,y,z,A,B,C] (deg)
+  Vec6d frame;       // [x,y,z,A,B,C] (deg)
   Eigen::Matrix4d T; // homogeneous transform
 
   Eigen::Vector3d t()   const { return T.block<3,1>(0,3); }
@@ -81,12 +81,24 @@ using MatN3 = Eigen::Matrix<double, Eigen::Dynamic, 3, Eigen::RowMajor>;
 struct Profile { MatN3 cx, cv, le, re; };
 using Airfoil = std::vector<Profile>;
 
-Frame getBeltFrame(const Eigen::Vector3d& o,
+Vec6d getBeltFrame(const Eigen::Vector3d& o,
                    const Eigen::Ref<const Eigen::VectorXd>& x,
                    const Eigen::Ref<const Eigen::VectorXd>& y,
                    const Eigen::Ref<const Eigen::VectorXd>& z);
 
 Airfoil loadBladeJson(const QString& filePath);
 
+// ------------ Rsi Trajectory ------------
+struct MotionParams {
+  double v; // max contour velocity
+  double a; // contour acceleration
+};
+
+namespace rsi {
+  QVector<Vec6d> spline(const QVector<Vec6d> &ref_points, const MotionParams& mp, int decimals = 3);
+  QVector<Vec6d> lin(const QVector<Vec6d> &ref_points, const MotionParams& mp, int decimals = 3);
+};
+
+void writeOffsetsToJson(const QVector<Vec6d>& offsets, const QString& filePath, int decimals = 3);
 
 #endif // PATHPLANNER_H

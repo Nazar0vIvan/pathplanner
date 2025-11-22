@@ -176,7 +176,7 @@ Airfoil loadBladeJson(const QString& filePath)
 
 
 // ------------ Base ------------
-Frame getBeltFrame(const Eigen::Vector3d& o,
+Vec6d getBeltFrame(const Eigen::Vector3d& o,
                    const Eigen::Ref<const Eigen::VectorXd>& x,
                    const Eigen::Ref<const Eigen::VectorXd>& y,
                    const Eigen::Ref<const Eigen::VectorXd>& z)
@@ -227,7 +227,7 @@ Cylinder Cylinder::fromAxis(const Eigen::Vector3d& c1,
   transform.block<3,1>(0,3) = o;
   // get Frame
   EulerSolution angles = rot2euler(transform.topLeftCorner<3,3>(), true);
-  Frame frame;
+  Vec6d frame;
   frame << o, angles.A1, angles.B1, angles.C1;
 
   Pose pose = { frame, transform };
@@ -253,5 +253,118 @@ Pose Cylinder::surfacePose(double deltaY) const
   return scs;
 }
 
+
+// ------------ Trajectory ------------
+namespace rsi {
+
+QVector<Vec6d> spline(const QVector<Vec6d>& ref_points, const MotionParams& mp, int decimals)
+{
+  // [v] = mm/s; [a] = mm/s^2
+  const double dt = 0.004; // 4 ms
+  const int n = ref_points.size();
+
+  // 1) cumulative arc length
+  QVector<double> cumLen(n);
+  cumLen[0] = 0.0;
+  for (int i = 1; i < n; ++i)
+    cumLen[i] = cumLen[i - 1] + (ref_points[i] - ref_points[i - 1]).norm();
+
+  const double totalLen = cumLen.last(); // S
+
+  const double v_max = mp.v;
+  const double a     = mp.a;
+
+  // 2) trapezoidal profile parameters (assuming constant velocity is reached)
+  const double t_acc = v_max / a;                 // accel time
+  const double t_dec = t_acc;                     // decel time (symmetric)
+  const double s_acc = 0.5 * a * t_acc * t_acc;   // distance in accel
+  const double s_dec = s_acc;                     // distance in decel
+  const double s_const = totalLen - s_acc - s_dec;
+  const double t_const = s_const / v_max;
+  const double T_total = t_acc + t_const + t_dec;
+
+  const int steps = static_cast<int>(std::ceil(T_total / dt));
+
+  QVector<Vec6d> offsets;
+  offsets.reserve(steps);
+
+  Vec6d prevPos = ref_points.front();
+
+  const double scale = std::pow(10.0, decimals);
+
+  for (int k = 1; k <= steps; ++k) {
+    double t = k * dt;
+    if (t > T_total) t = T_total;
+
+    // 3) s(t) along contour
+    double s;
+    if (t <= t_acc) {
+      // acceleration
+      s = 0.5 * a * t * t;
+    } else if (t <= t_acc + t_const) {
+      // constant speed
+      const double t2 = t - t_acc;
+      s = s_acc + v_max * t2;
+    } else {
+      // deceleration
+      const double t3 = t - t_acc - t_const;
+      s = s_acc + s_const + v_max * t3 - 0.5 * a * t3 * t3;
+    }
+    if (s > totalLen)
+      s = totalLen;
+
+    // 4) find segment for this s
+    auto it = std::upper_bound(cumLen.begin(), cumLen.end(), s);
+    int idx = int(std::distance(cumLen.begin(), it)) - 1;
+    if (idx < 0)      idx = 0;
+    if (idx >= n - 1) idx = n - 2;
+
+    const double segStart = cumLen[idx];
+    const double segLen   = cumLen[idx + 1] - segStart;
+    const double alpha    = segLen > 0.0 ? (s - segStart) / segLen : 0.0;
+
+    // 5) interpolate pose
+    Vec6d currPos = (1.0 - alpha) * ref_points[idx]
+                    + alpha       * ref_points[idx + 1];
+
+    // 6) offset and rounding
+    Vec6d dP = currPos - prevPos;
+    for (int i = 0; i < 6; ++i)
+      dP(i) = std::round(dP(i) * scale) / scale;
+
+    offsets.push_back(dP);
+    prevPos = currPos;
+  }
+
+  return offsets;
+}
+
+QVector<Vec6d> lin(const QVector<Vec6d> &ref_points, const MotionParams &mp, int decimals)
+{
+  QVector<Vec6d> offsets;
+  return offsets;
+}
+}
+
+void writeOffsetsToJson(const QVector<Vec6d> &offsets, const QString &filePath, int decimals)
+{
+  QJsonArray root;
+
+  for (const Vec6d &v : offsets) {
+    QJsonArray row;
+    for (int i = 0; i < 6; ++i) {
+      QString s = QString::number(v(i), 'f', decimals);
+      row.append(s);
+    }
+    root.append(row);
+  }
+
+  QJsonDocument doc(root);
+
+  QFile file(filePath);
+  file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text);
+  file.write(doc.toJson(QJsonDocument::Indented));
+  file.close();
+}
 
 
