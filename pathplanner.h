@@ -96,7 +96,7 @@ struct MotionParams {
 
 namespace rsi {
   QVector<Vec6d> spline(const QVector<Vec6d> &ref_points, const MotionParams& mp, int decimals = 3);
-  QVector<Vec6d> lin(const QVector<Vec6d> &ref_points, const MotionParams& mp, int decimals = 3);
+  QVector<Vec6d> lin(const Vec6d& P1, const Vec6d& P2, , const MotionParams& mp, int decimals = 3);
 };
 
 void writeOffsetsToJson(const QVector<Vec6d>& offsets, const QString& filePath, int decimals = 3);
