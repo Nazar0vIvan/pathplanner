@@ -23,19 +23,28 @@ struct Pose {
   Vec6d frame;       // [x,y,z,A,B,C] (deg)
   Eigen::Matrix4d T; // homogeneous transform
 
-  Eigen::Vector3d t()   const { return T.block<3,1>(0,3); }
-  Eigen::Matrix3d R()   const { return T.block<3,3>(0,0); }
+  Eigen::Vector3d t() const { return T.block<3,1>(0,3); }
+  Eigen::Matrix3d R() const { return T.block<3,3>(0,0); }
 };
 
 struct Cylinder {
-  static Cylinder fromAxis(const Eigen::Vector3d& c1,
-                           const Eigen::Vector3d& c2,
-                           const Eigen::Vector3d& pc,
-                           double R);
+  static Cylinder fromPoints(const Eigen::Vector3d& c1,
+                             const Eigen::Vector3d& c2,
+                             const Eigen::Vector3d& pc,
+                             double R, double L,
+                             char axis = 'y');
 
-  Pose surfacePose(double deltaY) const;
+  static Cylinder fromAxis(const Eigen::Vector3d& u,
+                           const Eigen::Vector3d& pc,
+                           double R, double L,
+                           char axis = 'y');
+
+  Pose surfacePose(char axis1, double val1,
+                   char axisRot, double angleDeg,
+                   char axis2, double val2) const;
 
   double R;
+  double L;
   Pose pose;
 };
 
@@ -55,6 +64,13 @@ Eigen::Vector3d poly(double x0, double x1, double x2,
 
 EulerSolution rot2euler(const Eigen::Matrix3d& R, bool is_deg = false);
 Eigen::Matrix3d euler2rot(double A, double B, double C, bool is_deg = false);
+Eigen::Vector3d axisVec(char axis, double value);
+Eigen::Vector3d prjPointToLine(const Eigen::Vector3d& l0,
+                               const Eigen::Vector3d& v,
+                               const Eigen::Vector3d& p);
+
+// project vector vec onto plane ⟂ n (n assumed unit-ish)
+Eigen::Vector3d prjToPerpPlane(const Eigen::Vector3d& vec, const Eigen::Vector3d& n);
 
 // ------------ Frene ------------
 struct Frene {
@@ -96,7 +112,7 @@ struct MotionParams {
 
 namespace rsi {
   QVector<Vec6d> spline(const QVector<Vec6d> &ref_points, const MotionParams& mp, int decimals = 3);
-  QVector<Vec6d> lin(const Vec6d& P1, const Vec6d& P2, , const MotionParams& mp, int decimals = 3);
+  QVector<Vec6d> lin(const Vec6d& P1, const Vec6d& P2, const MotionParams& mp, int decimals = 3);
 };
 
 void writeOffsetsToJson(const QVector<Vec6d>& offsets, const QString& filePath, int decimals = 3);
