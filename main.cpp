@@ -31,7 +31,9 @@ int main(int argc, char *argv[])
   const double Lr = 20.0;
 
   Cylinder rl = Cylinder::fromAxis(ur, Cr, Rr, Lr, 'y');
-  Pose rl_s = rl.surfacePose('y', 0.0, 'y', -45.0, 'z', rl.R + 10.0, false);
+  Pose rl_s = rl.surfacePose('y', -10.0, 'y', -45.0, 'z', rl.R, false);
+
+  // std::cout << rl_s.frame << std::endl;
 
   // WORKPIECE
   Eigen::Vector3d Pc = { -0.113702, -0.012406, 111.290488 };
@@ -60,7 +62,7 @@ int main(int argc, char *argv[])
 
   Cylinder cyl = Cylinder::fromTwoPoints(Pc1, Pc2, Pc, Rc, Lc, 'z');
 
-  Eigen::Matrix4d AiC = cyl.surfacePose('z', 0.0, 'z', 0.0, 'y', -Rc, true).T;
+  Eigen::Matrix4d AiC = cyl.surfacePose('z', 54.0+15.0, 'z', 0.0, 'y', -Rc, true).T;
 
   Eigen::Matrix4d AiT;
   AiT <<  -1.0, 0.0, 0.0, 0.0,
@@ -86,7 +88,7 @@ int main(int argc, char *argv[])
           0.0, 0.0,  0.0, 1.0; // BELT
 
   */
-  *
+
   /*
   AiT <<  0.0,-1.0, 0.0, 0.0,
          -1.0, 0.0, 0.0, 0.0,
