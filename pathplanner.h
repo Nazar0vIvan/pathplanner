@@ -28,11 +28,11 @@ struct Pose {
 };
 
 struct Cylinder {
-  static Cylinder fromPoints(const Eigen::Vector3d& c1,
-                             const Eigen::Vector3d& c2,
-                             const Eigen::Vector3d& pc,
-                             double R, double L,
-                             char axis = 'y');
+  static Cylinder fromTwoPoints(const Eigen::Vector3d& c1,
+                                const Eigen::Vector3d& c2,
+                                const Eigen::Vector3d& pc,
+                                double R, double L,
+                                char axis = 'y');
 
   static Cylinder fromAxis(const Eigen::Vector3d& u,
                            const Eigen::Vector3d& pc,
@@ -41,7 +41,10 @@ struct Cylinder {
 
   Pose surfacePose(char axis1, double val1,
                    char axisRot, double angleDeg,
-                   char axis2, double val2) const;
+                   char axis2, double val2,
+                   bool returnLocal = false) const;
+
+  QVector<Pose> surfaceRing(int n, double L) const;
 
   double R;
   double L;
@@ -116,5 +119,7 @@ namespace rsi {
 };
 
 void writeOffsetsToJson(const QVector<Vec6d>& offsets, const QString& filePath, int decimals = 3);
+
+QVector<Pose> pathFromSurfPoses(const QVector<Pose>& surf_poses, const Eigen::Matrix4d& AiT);
 
 #endif // PATHPLANNER_H

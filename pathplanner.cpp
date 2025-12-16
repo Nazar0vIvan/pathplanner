@@ -199,7 +199,6 @@ Airfoil loadBladeJson(const QString& filePath)
   return airfoil;
 }
 
-
 // ------------ Base ------------
 Vec6d getBeltFrame(const Eigen::Vector3d& o,
                    const Eigen::Ref<const Eigen::VectorXd>& x,
@@ -261,11 +260,11 @@ Cylinder Cylinder::fromAxis(const Eigen::Vector3d &u,
   return { R, L, pose };
 }
 
-Cylinder Cylinder::fromPoints(const Eigen::Vector3d& c1,
-                              const Eigen::Vector3d& c2,
-                              const Eigen::Vector3d& o,
-                              double R, double L,
-                              char axis)
+Cylinder Cylinder::fromTwoPoints(const Eigen::Vector3d& c1,
+                                 const Eigen::Vector3d& c2,
+                                 const Eigen::Vector3d& o,
+                                 double R, double L,
+                                 char axis)
 {
   axis = char(std::tolower(static_cast<unsigned char>(axis)));
   Eigen::Vector3d d = (c2 - c1);
@@ -299,7 +298,8 @@ Cylinder Cylinder::fromPoints(const Eigen::Vector3d& c1,
 
 Pose Cylinder::surfacePose(char axis1, double val1,
                            char axisRot, double angleDeg,
-                           char axis2, double val2) const
+                           char axis2, double val2,
+                           bool returnLocal) const
 {
   const Eigen::Matrix4d T1 = trMatrix4x4(axisVec(axis1, val1));
   const Eigen::Matrix4d RR = rotMatrix4x4(angleDeg, axisRot);
@@ -307,19 +307,36 @@ Pose Cylinder::surfacePose(char axis1, double val1,
 
   const Eigen::Matrix4d T_local = T1 * RR * T2;
 
-  Pose scs;
-  scs.T = pose.T * T_local;
+  Pose surf_pose;
+  surf_pose.T = returnLocal ? T_local : pose.T * T_local;
 
-  const Eigen::Vector3d os = scs.T.block<3,1>(0,3);
-  EulerSolution eul = rot2euler(scs.T.topLeftCorner<3,3>(), true);
+  const Eigen::Vector3d os = surf_pose.T.block<3,1>(0,3);
+  EulerSolution eul = rot2euler(surf_pose.T.topLeftCorner<3,3>(), true);
 
-  scs.frame << os.x(), os.y(), os.z(), eul.A1, eul.B1, eul.C1;
-  return scs;
+  surf_pose.frame << os.x(), os.y(), os.z(), eul.A1, eul.B1, eul.C1;
+  return surf_pose;
+}
+
+QVector<Pose> Cylinder::surfaceRing(int n, double L) const
+{
+  QVector<Pose> poses;
+  poses.reserve(n);
+
+  for (int k = 0; k < n; ++k) {
+    const double angleDeg = 360.0 * double(k) / double(n);
+    Pose p = surfacePose('z', L,
+                         'z', angleDeg,
+                         'y', -R,
+                         /*returnLocal=*/true);
+
+    poses.push_back(p);
+  }
+  return poses;
 }
 
 // ------------ Trajectory ------------
 namespace rsi {
-  QVector<Vec6d> spline(const QVector<Vec6d>& ref_points, const MotionParams& mp, int decimals)
+  QVector<Vec6d> polyline(const QVector<Vec6d>& ref_points, const MotionParams& mp, int decimals)
   {
     // [v] = mm/s; [a] = mm/s^2
     const double dt = 0.004; // 4 ms
@@ -386,8 +403,7 @@ namespace rsi {
       const double alpha    = segLen > 0.0 ? (s - segStart) / segLen : 0.0;
 
       // 5) interpolate pose
-      Vec6d currPos = (1.0 - alpha) * ref_points[idx]
-                      + alpha       * ref_points[idx + 1];
+      Vec6d currPos = (1.0 - alpha) * ref_points[idx] + alpha * ref_points[idx + 1];
 
       // 6) offset and rounding
       Vec6d dP = currPos - prevPos;
@@ -400,6 +416,7 @@ namespace rsi {
 
     return offsets;
   }
+
   QVector<Vec6d> lin(const Vec6d& P1, const Vec6d& P2, const MotionParams &mp, int decimals)
   {
     const double dt = 0.004;          // 4 ms
@@ -469,6 +486,29 @@ namespace rsi {
 
     return offsets;
   }
+}
+
+
+QVector<Pose> pathFromSurfPoses(const QVector<Pose>& surf_poses, const Eigen::Matrix4d& AiT)
+{
+  QVector<Pose> path;
+  path.reserve(surf_poses.size());
+
+  for (const Pose& surf_pose : surf_poses) {
+    const Eigen::Matrix4d AiB = surf_pose.T;
+    const Eigen::Matrix4d ABT = AiT * AiB.inverse();
+
+    Pose out;
+    out.T = ABT;
+
+    const Eigen::Vector3d t = ABT.block<3,1>(0,3);
+    const EulerSolution eul = rot2euler(ABT.topLeftCorner<3,3>(), /*is_deg=*/true);
+
+    out.frame << t.x(), t.y(), t.z(), eul.A1, eul.B1, eul.C1;
+    path.push_back(out);
+  }
+
+  return path;
 }
 
 void writeOffsetsToJson(const QVector<Vec6d> &offsets, const QString &filePath, int decimals)
